@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>高齡體適能檢測分析</title>
+<style>
+body{font:20px/1.6 "Noto Sans TC","Microsoft JhengHei",sans-serif;margin:0;background:#f4f6f8;color:#222}
+header{background:#1565c0;color:#fff;padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+header h1{font-size:22px;margin:0;flex:1}
+main{max-width:860px;margin:0 auto;padding:12px}
+.card{background:#fff;border-radius:10px;padding:16px;margin-bottom:14px;box-shadow:0 1px 4px #0002}
+h2{font-size:22px;margin:0 0 8px}
+button{font:inherit;padding:8px 16px;border:0;border-radius:8px;background:#1565c0;color:#fff;cursor:pointer;margin:4px 4px 4px 0}
+button.g{background:#607d8b}button.r{background:#c62828}
+input,select{font:inherit;padding:6px;width:100%;box-sizing:border-box;border:1px solid #999;border-radius:6px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:8px 0}
+label{display:block;font-size:18px}small{color:#555;font-size:15px}
+.q{padding:6px 0;border-bottom:1px solid #eee}.q input{width:auto;transform:scale(1.4);margin-right:10px}
+.warn{background:#fff3e0;border-left:6px solid #ef6c00;padding:10px;margin:8px 0}
+table{border-collapse:collapse;width:100%;font-size:18px}td,th{border-bottom:1px solid #ddd;padding:6px;text-align:left}
+.bar{display:inline-flex;gap:2px}.bar i{width:22px;height:16px;background:#ddd;display:inline-block}
+.lb{font-weight:bold}.rx h4{margin:12px 0 4px}.rx td:first-child{width:2em}
+@media print{.pb{page-break-before:always}.np{display:none!important}body{background:#fff;font-size:15px}.card{box-shadow:none;padding:0}}
+</style></head><body>
+<header class="np"><h1>高齡體適能檢測分析</h1>
+<button class="g" onclick="go(0)">新檢測</button><button class="g" onclick="openRec()">紀錄</button></header>
+<main>
+<div id="s0" class="card"><h2>步驟1：檢測前安全問題</h2>
+<p>請詢問長者，有任何一題答「是」就勾選。</p><div id="qs"></div>
+<div id="qw" class="warn" hidden>有勾選項目，建議先請醫師評估再檢測。<label><input type="checkbox" id="ok" style="width:auto"> 已確認醫師同意，或由專業人員判斷可以檢測</label></div>
+<button onclick="chk()">下一步</button></div>
+
+<div id="s1" class="card" hidden><h2>步驟2：輸入資料</h2>
+<div class="row">
+<label>編號或姓名（建議用編號）<input id="id"></label>
+<label>檢測日期<input id="dt" type="date"></label>
+<label>性別<select id="sx"><option value="">請選擇</option><option value="M">男</option><option value="F">女</option></select></label>
+<label>年齡<input id="ag" type="number" inputmode="numeric"></label></div>
+<div class="row">
+<label>身高（公分）<input id="ht" type="number" step="0.1"></label>
+<label>體重（公斤）<input id="wt" type="number" step="0.1"></label>
+<label>腰圍（公分）<input id="wa" type="number" step="0.1"></label>
+<label>臀圍（公分）<input id="hp" type="number" step="0.1"></label></div>
+<p><small>沒做的項目留白即可。</small></p><div id="ff" class="row"></div>
+<button onclick="calc()">產生分析</button></div>
+
+<div id="s2" class="card" hidden></div>
+<div id="s3" class="card np" hidden><h2>紀錄</h2>
+<p><small>資料存在這台電腦的瀏覽器裡。換電腦或清除瀏覽資料會消失，請定期匯出備份。共用電腦請用編號，不要用全名。</small></p>
+<button onclick="exp()">匯出檔案</button>
+<label style="display:inline-block"><span class="g" style="display:inline-block;padding:8px 16px;border-radius:8px;background:#607d8b;color:#fff;cursor:pointer">匯入檔案</span><input type="file" accept=".json" onchange="imp(this)" hidden></label>
+<button class="r" onclick="clr()">清除本機所有資料</button>
+<div id="rl"></div><div id="tr"></div></div>
+</main>
+<script>
+const N={
+arm:{M:[[16,19,22,26],[16,19,22,25],[15,18,21,24],[14,17,20,23],[12,16,18,22],[10,14,16,20]],F:[[16,19,21,25],[16,19,21,24],[15,18,20,24],[13,16,20,23],[12,15,18,22],[10,15,18,20]]},
+chair:{M:[[14,17,20,25],[13,16,19,23],[12,15,18,21],[10,14,16,20],[8,12,14,18],[6,11,13,16]],F:[[14,17,20,23],[13,16,19,23],[12,15,17,20],[10,13,15,19],[8,11,14,17],[5,10,13,17]]},
+scr:{M:[[-22,-11,-3,3],[-24,-14,-5,3],[-29,-20,-10,0.4],[-33,-21.8,-11,1],[-33,-23,-12,0],[-36.2,-23,-13,-1.6]],F:[[-12,-2,3,6],[-14,-5,2,5],[-19,-10,0,4],[-22,-13,-4,3],[-28,-17,-9,1],[-30,-18,-9,1]]},
+rch:{M:[[-6,1,6,12],[-9,0,5,11],[-12,-2,2,8],[-11,-2,1,6],[-15,-5,1,6],[-17,-8,0,5.2]],F:[[0,6,11,18],[0,4,9,16],[0,3,7,13],[-1,2,5,11],[-8,0,3,8],[-10,0,2,7]]},
+stp:{M:[[81,96,106,117],[79,95,107,120],[70,92,106,119],[63,87,100,113],[43,74,95,109],[32,68,82,102]],F:[[88,100,110,122],[81,98,110,122],[70,92,105,118],[52,81,98,114],[35,68,89,108],[17,56,81,100]]},
+bal:{M:[[6.09,17,30,30],[5.45,13.8,24.49,30],[2.86,6.98,14,28.64],[2.16,5,9.76,19.34],[1.03,3.28,5.49,12],[0,2,3.7,12]],F:[[7.69,17.92,30,30],[4.8,10.65,21.72,30],[2.98,6.28,11.8,25],[1.5,3.73,7,15],[0,2,4.98,10],[0,1.3,3.87,12.24]]},
+tug:{M:[[4.76,5.6,6.6,8],[5.1,6,7,8.92],[5.4,6.68,7.73,10.23],[6.1,7.36,9,12.3],[6.64,9,11.1,15.41],[7.76,10.1,13.54,19.12]],F:[[4.9,5.5,6.21,7.63],[5.3,6,7,8.6],[5.9,6.8,7.9,10],[6.62,8.02,9.63,12.41],[7.9,9.62,12,16.26],[8.25,11,14.9,21.05]]}
+};
+const IT=[['arm','上肢肌力','30秒手臂屈舉','次'],['chair','下肢肌力','30秒椅子坐立','次'],['scr','上肢柔軟度','抓背','公分（兩手指重疊為正，沒碰到為負）'],['rch','下肢柔軟度','椅子坐姿體前彎','公分（超過腳尖為正，沒到為負）'],['stp','心肺耐力','2分鐘原地抬膝','次'],['bal','平衡能力','開眼單足立','秒（最多30）'],['tug','動態平衡與敏捷力','椅子坐起繞物','秒（越短越好）']];
+const Q=['醫師說過心臟有問題，或只能在醫師建議下運動','運動或活動時會胸痛、胸悶','最近一年曾因頭暈而昏倒或差點跌倒','今天安靜時血壓偏高（收縮壓180以上或舒張壓110以上）','今天身體不舒服（發燒、感冒、頭暈、喘）','有關節或肌肉問題，活動時會明顯疼痛','最近三個月內動過手術或住院'];
+const LB=['不好','稍差','適當','良好','很好'],CL=['#c62828','#ef6c00','#f9a825','#7cb342','#2e7d32'];
+const $=s=>document.querySelector(s),num=id=>{const v=$('#'+id).value;return v===''?null:parseFloat(v)};
+let cur=null;
+$('#qs').innerHTML=Q.map((q,i)=>`<div class="q"><label><input type="checkbox" class="qc">${q}</label></div>`).join('');
+$('#ff').innerHTML=IT.map(i=>`<label>${i[1]}：${i[2]}<br><small>${i[3]}</small><input id="f_${i[0]}" type="number" step="any"></label>`).join('');
+$('#dt').value=new Date().toISOString().slice(0,10);
+function go(n){[0,1,2,3].forEach(i=>$('#s'+i).hidden=i!=n);scrollTo(0,0)}
+function chk(){const any=[...document.querySelectorAll('.qc')].some(c=>c.checked);$('#qw').hidden=!any;if(any&&!$('#ok').checked){alert('請先確認醫師同意或專業人員判斷');return}go(1)}
+const ai=a=>Math.min(5,Math.max(0,Math.floor((a-65)/5)));
+function lv(k,v,s,a){if(k=='bal'&&v<=0)return 1;const n=N[k][s][ai(a)].filter(x=>v>=x).length;return k=='tug'?5-n:n+1}
+function calc(){const sx=$('#sx').value,ag=num('ag');if(!sx||!ag||ag<50||ag>115){alert('請選擇性別並填寫年齡');return}
+const v={};IT.forEach(i=>v[i[0]]=num('f_'+i[0]));
+cur={id:$('#id').value.trim()||'未命名',dt:$('#dt').value,sx,ag,ht:num('ht'),wt:num('wt'),wa:num('wa'),hp:num('hp'),v};show(cur);go(2)}
+function show(r){const M=r.sx=='M';let h=`<h2>檢測結果</h2><p>${r.id}　${r.dt}　${M?'男':'女'}　${r.ag}歲</p>`;
+if(r.ag<65)h+='<div class="warn">未滿65歲，常模是65歲以上的資料，結果僅供參考。</div>';
+h+='<h3>身體組成（看數值與參考範圍）</h3><table>';
+if(r.ht&&r.wt){const b=r.wt/Math.pow(r.ht/100,2),t=b<18.5?'偏瘦':b<24?'在健康範圍':b<27?'偏重':'肥胖範圍';h+=`<tr><td>BMI</td><td>${b.toFixed(1)}</td><td>${t}（健康範圍18.5以上、未滿24）</td></tr>`}
+if(r.wa){h+=`<tr><td>腰圍</td><td>${r.wa} 公分</td><td>${r.wa>=(M?90:80)?'偏大':'在範圍內'}（${M?'男性90':'女性80'}公分以上為偏大）</td></tr>`}
+if(r.wa&&r.hp){const w=r.wa/r.hp;h+=`<tr><td>腰臀比</td><td>${w.toFixed(2)}</td><td>${w>=(M?.9:.85)?'偏高':'在範圍內'}（參考值：${M?'男0.90':'女0.85'}）</td></tr>`}
+h+='</table><p><small>長者太瘦也不好，BMI偏瘦時建議請營養師或醫師協助。</small></p><h3>體適能（和臺灣同年齡、同性別長者比較）</h3><table><tr><th>項目</th><th>結果</th><th>等級</th><th>同齡「適當」範圍</th></tr>';
+const L=[];IT.forEach(i=>{const x=r.v[i[0]];if(x==null){h+=`<tr><td>${i[1]}<br><small>${i[2]}</small></td><td colspan="3">未檢測</td></tr>`;return}
+const l=lv(i[0],x,r.sx,r.ag);L.push([i,l]);h+=`<tr><td>${i[1]}<br><small>${i[2]}</small></td><td>${x}</td><td><span class="bar">${[0,1,2,3,4].map(j=>`<i style="${j<l?'background:'+CL[l-1]:''}"></i>`).join('')}</span> <span class="lb" style="color:${CL[l-1]}">${LB[l-1]}</span></td><td>${rg(i[0],r)}</td></tr>`});
+h+='</table><h3>總結</h3>'+radar(L);
+if(!L.length)h+='<p>沒有填寫體適能項目。</p>';else{
+const w=L.filter(x=>x[1]<=2),s=L.filter(x=>x[1]>=4);
+h+=`<p>共檢測 ${L.length} 項。${s.length?'表現較好：'+s.map(x=>x[0][1]).join('、')+'。':''}${w.length?'需要加強：'+w.map(x=>x[0][1]).join('、')+'。':'沒有明顯偏弱的項目，請繼續保持運動。'}</p>`;
+if(L.some(x=>(x[0][0]=='bal'||x[0][0]=='tug')&&x[1]<=2))h+='<p>平衡或敏捷力偏弱，跌倒風險可能較高，運動時請有人在旁邊，並注意居家安全。</p>';
+if(w.some(x=>x[0][0]=='chair'))h+='<p>下肢肌力偏弱，走路、起身和上下樓梯會比較吃力，建議多做腿部肌力練習。</p>'}
+h+='<p><small>說明：等級以臺灣國民體適能常模（一般檢測、65歲以上組）判定，是和同齡人比較，不是診斷。運動前如有不舒服請先就醫。</small></p><div class="np"><button onclick="sv()">儲存這筆紀錄</button><button class="g" onclick="print()">列印／存成PDF</button><button class="g" onclick="go(1)">回去修改</button></div>';
+const mk='<div class="np"><button onclick="sv()">';$('#s2').innerHTML=h.replace(mk,()=>rx(L)+mk)}
+const E={wu:['暖身','原地輕鬆踏步，轉動肩膀、手腕、腳踝，約5分鐘。'],
+mk:['原地抬膝踏步','站穩（可扶椅），輕鬆抬膝踏步，手臂自然擺動。'],
+wk:['快走','走平地，速度是「可以說話、但有點喘」。'],
+cs:['椅子坐站','坐在椅子前半，雙手交叉胸前，慢慢站起，再慢慢坐下。'],
+sq:['扶椅半蹲','雙手扶椅背，膝蓋微彎蹲一點點，背挺直，再站起來。'],
+hr:['踮腳尖','扶椅背，雙腳跟抬起，再慢慢放下。'],
+cu:['手臂彎舉','手握裝水寶特瓶或1–2公斤啞鈴，手肘貼身體，彎起再慢慢放下。'],
+wp:['水瓶上推','坐姿，雙手握水瓶從肩膀往上推再放下，不要憋氣。'],
+pu:['扶牆推牆','雙手扶牆與肩同寬，身體前傾，再用手推回來。'],
+sb:['扶椅單腳站','一手扶椅，抬起一隻腳站穩；旁邊要有人保護。'],
+tw:['腳跟接腳尖走','沿直線，一腳腳跟接另一腳腳尖往前走，旁邊要有扶手或人。'],
+sh:['重心轉移','雙腳與肩同寬，重心慢慢移到左腳，再移到右腳。'],
+up:['起身繞物練習','從椅子站起，走到前方約2.44公尺的標記繞過，走回坐下。'],
+rc:['坐姿體前彎伸展','坐椅子前緣，一腳伸直腳跟著地，背挺直身體前傾，感覺大腿後側拉緊。'],
+sc:['毛巾抓背伸展','一手從上、一手從下抓毛巾，輕輕拉動，再換邊。'],
+cf:['小腿與胸肩伸展','扶牆伸展小腿；雙手在背後交握，把胸口打開。']};
+const CT={cardio:['mk','wk'],leg:['cs','sq','hr'],arm:['cu','wp','pu'],bal:['sb','tw','sh'],agi:['up'],flex:['rc','sc','cf']};
+const LS=['1–2組，每組8–10下','2組，每組10–12下','2–3組，每組12–15下'];
+const DS={cardio:['10分鐘','15分鐘','20分鐘'],leg:LS,arm:LS,bal:['每邊2次，每次15秒（可扶椅）','每邊2次，每次20秒（盡量少扶）','每邊3次，每次30秒（有人在旁，逐步不扶）'],agi:['3趟，慢慢走','4趟，稍加快','5趟，穩定前提下加快'],flex:['每個動作15秒，做2次','每個動作20秒，做2次','每個動作30秒，做2次']};
+const PH=['第1–4週：適應期','第5–8週：進步期','第9–12週：強化期'];
+function rg(k,r){const c=N[k][r.sx][ai(r.ag)];return c[1]+' – '+c[2]}
+function radar(L){if(L.length<3)return'';const n=L.length,R=100,c=140,P=(i,r)=>{const a=-Math.PI/2+2*Math.PI*i/n;return[c+r*Math.cos(a),c+r*Math.sin(a)]};
+let s='<svg viewBox="-30 -5 340 290" style="max-width:360px;width:100%;display:block;margin:auto">';
+for(let k=1;k<=5;k++)s+=`<polygon points="${L.map((_,i)=>P(i,R*k/5).join(',')).join(' ')}" fill="none" stroke="#bbb"/>`;
+L.forEach((x,i)=>{const[a,b]=P(i,R),[tx,ty]=P(i,R+24);s+=`<line x1="${c}" y1="${c}" x2="${a}" y2="${b}" stroke="#ddd"/><text x="${tx}" y="${ty}" font-size="13" text-anchor="middle" dominant-baseline="middle">${x[0][1].replace('動態平衡與敏捷力','動態平衡')}</text>`});
+s+=`<polygon points="${L.map((x,i)=>P(i,R*x[1]/5).join(',')).join(' ')}" fill="#1565c055" stroke="#1565c0" stroke-width="2"/></svg>`;
+return s+'<p style="text-align:center"><small>圈越大越好（最外圈＝很好，最內圈＝不好）</small></p>'}
+function rx(L){const ct={arm:'arm',chair:'leg',scr:'flex',rch:'flex',stp:'cardio',bal:'bal',tug:'agi'},W=new Set(L.filter(x=>x[1]<=2).map(x=>ct[x[0][0]])),
+nm={cardio:'心肺耐力',leg:'下肢肌力',arm:'上肢肌力',bal:'平衡',agi:'動態平衡與敏捷',flex:'柔軟度'};
+if(!L.length)return'';
+let h='<div class="rx pb"><h2>12週運動處方（草稿）</h2><p>每週運動3次（例如週一、三、五，中間至少休息1天），每次約40–50分鐘，強度以「可以說話、但有點喘」為準。'+(W.size?'本次加強：'+[...W].map(c=>nm[c]).join('、')+'（標★的是多加的動作）。':'目前沒有明顯偏弱的項目，以維持與全面訓練為主。')+'</p>';
+PH.forEach((p,i)=>{h+=`<h4>${p}</h4><table><tr><th></th><th>動作</th><th>份量</th></tr><tr><td>1</td><td>${E.wu[0]}<br><small>${E.wu[1]}</small></td><td>5分鐘</td></tr>`;let n=2;
+['cardio','leg','arm','bal','agi','flex'].forEach(c=>{if(c=='agi'&&!W.has('agi'))return;const m=c=='flex'?(W.has(c)?3:2):(W.has(c)?2:1);CT[c].slice(0,m).forEach((id,j)=>{h+=`<tr><td>${n++}</td><td>${j&&W.has(c)&&c!='flex'||c=='flex'&&j>1?'★ ':''}${E[id][0]}<br><small>${E[id][1]}</small></td><td>${DS[c][i]}</td></tr>`})});h+='</table>'});
+return h+'<p><small>注意：運動時如有胸痛、頭暈、呼吸困難或明顯疼痛，請立刻停止並就醫。平衡練習請有人在旁邊。第12週結束後建議重新檢測。這份處方是程式草稿，需由專業人員審閱後才使用；專業人員可修改程式中的 E（動作）、CT（各類動作）、DS（份量）三個資料表。</small></p></div>'}
+function db(){try{return JSON.parse(localStorage.getItem('sft')||'[]')}catch(e){return[]}}
+function sdb(d){try{localStorage.setItem('sft',JSON.stringify(d));return true}catch(e){alert('這個瀏覽器無法儲存，請用「匯出檔案」');return false}}
+function sv(){const d=db().filter(x=>!(x.id==cur.id&&x.dt==cur.dt));d.push(cur);if(sdb(d))alert('已儲存')}
+function openRec(){go(3);const d=db().sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:a.dt<b.dt?-1:1);
+$('#rl').innerHTML=d.length?'<table>'+d.map((x,i)=>`<tr><td>${x.id}</td><td>${x.dt}</td><td><button onclick="ld(${i})">查看</button><button class="g" onclick="tr('${x.id.replace(/'/g,'')}')">趨勢</button><button class="r" onclick="del(${i})">刪除</button></td></tr>`).join('')+'</table>':'<p>還沒有紀錄。</p>';$('#tr').innerHTML='';window._d=d}
+function ld(i){cur=window._d[i];show(cur);go(2)}
+function del(i){if(!confirm('確定刪除？'))return;const x=window._d[i];sdb(db().filter(y=>!(y.id==x.id&&y.dt==x.dt)));openRec()}
+function tr(id){const d=db().filter(x=>x.id==id).sort((a,b)=>a.dt<b.dt?-1:1);
+$('#tr').innerHTML=`<h3>${id} 的趨勢（數字是等級1–5，5最好）</h3><table><tr><th>日期</th>${IT.map(i=>`<th>${i[1]}</th>`).join('')}</tr>`+d.map(r=>`<tr><td>${r.dt}</td>${IT.map(i=>`<td>${r.v[i[0]]==null?'-':lv(i[0],r.v[i[0]],r.sx,r.ag)}</td>`).join('')}</tr>`).join('')+'</table>'}
+async function exp(){const dl=window.claude?await claude.use('downloads'):null;if(!dl){alert('這個畫面無法匯出檔案');return}try{await dl.save({filename:'體適能紀錄_'+new Date().toISOString().slice(0,10)+'.json',data:JSON.stringify(db())})}catch(e){if(!e||e.code!='declined')alert('匯出失敗')}}
+function imp(el){const f=el.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const n=JSON.parse(rd.result);if(!Array.isArray(n))throw 0;let d=db();n.forEach(x=>{if(x&&x.id&&x.dt&&x.sx&&x.v){d=d.filter(y=>!(y.id==x.id&&y.dt==x.dt));d.push(x)}});if(sdb(d)){alert('匯入完成');openRec()}}catch(e){alert('檔案格式不正確')}};rd.readAsText(f);el.value=''}
+function clr(){if(confirm('會刪除這台電腦上所有紀錄，確定嗎？')){sdb([]);openRec()}}
+</script></body></html>
